@@ -231,4 +231,182 @@ class PhishingLinkdetector:
             return True
         
         return False
+    
+    def _count_subdomains(self, domain: str) -> int:
+        #count the number of subdomains
+        extracted = tldextract.extract(domain)
+        subdomain = extracted.subdomain
+
+        if subdomain:
+            return len(subdomain.split('.'))
+        return 0
+
+    def _extract_tld(self, domain: str) -> str:
+        #Extract the TLD from a domain
+        extracted = tldextract.extract(domain)
+        return f".{extracted.suffix}"
+    
+    def _check_brand_impersonation(self, domain: str, path: str) -> List[Dict[str, str]]:
+        #Check for brand impersonation
+        findings = []
+
+        for brand in self.brand_keywords:
+            #Check if brand is in domain but not the legitimate domain
+            if brand in domain:
+                legitimate_domain = f"{brand}.com"
+                if domain != legitimate_domain and legitimate_domain not in domain:
+                    findings.append({
+                        'type': 'BRAND_IMPERSONATION',
+                        'severity': 'HIGH',
+                        'description': f'Possible brand impersonation of {brand.capitalize()}'
+                    })
+                    break
+            
+            #Check if brand name appears in subdirectory
+            if brand in path and brand not in domain:
+                findings.append({
+                        'type': 'SUSPICIOUS BRAND IN PATH',
+                        'severity': 'MEDIUM',
+                        'description': f'Brand name "{brand}" found in url path'
+                    })
+        return findings
+
+    def _check_encoding_issues(self, url: str) -> List[Dict[str, str]]:
+        #check for suspicious URL encoding
+        findings = []
+
+        #Check for percent encoding
+        if % in url:
+            percent_count = url.count('%')
+            if percent_count > 3:
+                findings.append({
+                    'type': 'EXCESSIVE_ENCODING',
+                    'severity': 'MEDIUM',
+                    'decsription': f'URL contains excessive percent encoding ({percent_count} instances)'
+                })
+
+        #check for unicode encoding
+        if any(ord(char) > 127 for char in url):
+            findings.append({
+                'type': 'UNICODE_CHARACTERS',
+                'severity': 'HIGH',
+                'description': 'URL contains non-ASCII characters, potential homograph attack'
+            })       
+
+        return findings
+
+    def _check_character_substitution(self, domain: str) -> List[Dict[str, str]]:
+        #Check for common character substitution
+        findings = []
+
+        substitutions = {
+            '0': 'o',
+            '1': 'l',
+            '5': 's',
+            '8': 'b',
+            'rn': 'm',
+            'vv': 'w'
+        }
+
+        for fake_char, real_char in substitutions.items():
+            #Check if substitution is used in a brand-like context
+            for brand in self.brand_keywords:
+                modified_brand = brand.replace(real_char, fake_char)
+                if modified_brand in domain and modified_brand != brand:
+                    findings.append({
+                        'type': 'CHARACTER_SUBSTITUION',
+                        'severity': 'HIGH',
+                        'decsription': f'Possible character substitution: "{fake_char}" for "{real_char}" mimicking "{brand}"'
+                    })
+        return findings
+
+    def _calculate_risk_level(self, score: int) -> str:
+        #Calculate risk level based on score
+        if score >= 70:
+            return 'CRITICAL'
+        elif score >= 50:
+            return 'HIGH'
+        elif score >= 30:
+            return 'MEDIUM'
+        elif score >= 15:
+            return 'LOW'
+        else:
+            return 'SAFE'
+    
+    def _generate_recommendations(self, findings: List[Dict], risk_level: str ) -> List[str]:
+        #Generate security recommendations based on findings
+        recommendations = []
+
+        if risk_level in ['CRITICAL', 'HIGH']:
+            recommendations.append('DO NOT click on this link')
+            recommendations.append('Report this URL to your IT security team')
+            recommendations.append('If you must visit, manually type the known legitimate URL')
+
+        if any(f['type'] == 'BRAND_IMPERSONATION' for f in findings):
+            recommendations.append('verify the sender\'s identity through a different channel')
+            recommendations.append('Contact the company directly usign their office website')        
+
+        if any(f['type'] == 'IP_ADDRESS' for f in findings):
+            recommendations.append('legitimate services rarely use IP addresses directly')
+            recommendations.append('This is highly suspicious - avoid this link')
+
+        if any(f['type'] == 'DATA_URI' for f in findings):
+            recommendations.append('Data URIs can execute code - never click unless you fully trust the source')
+
+        if risk_level == 'LOW':
+            recommendations.append('Exercise caution when visiting this link')
+            recommendations.append('Verify the website\'s legitmacy before entering any information')
         
+        if not recommendations:
+            recommendations.append('URL appears safe, but always practice good security habits')
+        
+        return recommendations
+    
+    def _get_domain_info(self, domain: str) -> Dict:
+        #Get basic domain information
+        info = {
+            'domain': domain,
+            'is_legitimate': domain in self.legitimate_domains,
+            'suspicious_tld': self._extract_tld(domain) in self.suspicious_tlds
+        }
+
+        #Check if it's an IP address
+        info['is_ip'] = self._is_ip_address(domain)
+
+        return info
+
+    def batch_analyze(*self, urls: List[str]) -> List[URLAnalysisResult]:
+        #Analyze multiple URLs
+        results = []
+        for url in urls:
+            results.append(slef.analyze_url(url))
+        return results
+
+    def generate_reports(self, result: URLAnalysisResult) -> str:
+        #Generate a formatted report
+        report = f """
+        ╔══════════════════════════════════════════════════════════════╗
+        ║                 PHISHING LINK ANALYSIS REPORT                 ║
+        ╚══════════════════════════════════════════════════════════════╝
+
+        URL: {result.url}
+        Timestamp: {result.timestamp}
+        Risk Score: {result.risk_score}/100
+        Risk Level: {result.risk_level}
+        """
+
+        if result.findings:
+            report += "\n!!! SUSPICIOUS FINDINGS:\n"
+            report += "-" * 60 + "\n"
+            for i, finding in enumerate(result.findings, 1):
+                severity_icon = {
+                    'CRITICAL':'🔴',
+                    'HIGH':'🟠',
+                    'MEDIUM':'🟡',
+                    'LOW':'🟢'
+                }.get(finding['severity'], '⚪')
+                report += f"{i}. {severity_icon} [{finding['severity']}] {finding['type']}\n"
+                report += f" {finding['description']}\n\n"
+
+        if result.recommendations:
+            report += 
