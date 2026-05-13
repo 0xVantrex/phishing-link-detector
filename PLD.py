@@ -409,4 +409,28 @@ class PhishingLinkdetector:
                 report += f" {finding['description']}\n\n"
 
         if result.recommendations:
-            report += 
+            report += "\n RECOMMENDATIONS: \n"
+            report += "_" * 60 + "\n"
+            for i, rec in enumerate(result.recommendations, 1):
+                report += f"{i}. {rec}\n"
+
+        report += "\n"+ "=" * 60 + "\n"
+        return report
+
+    def main():
+        """Main function to demonmstrate the phishing link detector"""
+        detector = PhishingLinkdetector()
+
+        print("=" * 60)
+        print("PHISHING LINK DETCTOR - Social Engineering Analysis")
+        print("=" * 60)
+
+        #Example URLs to analyze
+        test_urls = [
+            "https://www.google.com",
+            "http://192.168.1.1/login",
+            "https://secure-paypal.com.verify-account.tk/login",
+            "https://bit.ly/3xK9mN2", #URL shortener
+            "https://paypa1.com/login",
+            "https://accounts.googl"
+        ]
