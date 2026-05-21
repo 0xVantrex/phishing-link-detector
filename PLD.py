@@ -427,10 +427,96 @@ class PhishingLinkdetector:
 
         #Example URLs to analyze
         test_urls = [
-            "https://www.google.com",
-            "http://192.168.1.1/login",
-            "https://secure-paypal.com.verify-account.tk/login",
+            "https://www.google.com", # legit
+            "http://192.168.1.1/login", #IP-based
+            "https://secure-paypal.com.verify-account.tk/login", #suspicious
             "https://bit.ly/3xK9mN2", #URL shortener
-            "https://paypa1.com/login",
-            "https://accounts.googl"
+            "https://paypa1.com/login", #legit
+            "https://accounts.google.com.security-alert.xyz/verify", #brand impersonation
+            "https://www.amazon.com/gp/css/homepage.html", #legit
+            "data:text/html,<script>alert('test')</script>", #Data URI
+            "https://security-alert-urgent.ga/update-password", #multiple red flags
         ]
+
+        while True:
+            print("\nOptions:")
+            print("1. Run demo analysis")
+            print("2. Analyze custom URL")
+            print("3. Batch analyze URLs")
+            print("4. Exit")
+
+            choice = input("\nSelect option (1-4): ").strip()
+
+            if choice == '1':
+                print("\n RUNNING DEMO ANALYSIS...")
+                print("=" * 60)
+
+                for urls in test_urls:
+                    result = detector.analyze_url(url)
+                    print(detector.generate_report(result))
+                    input("Press Enter to continue...")
+
+            elif choice == '2':
+                url = input("\nEnter URL to analyze: ").strip()
+                if url:
+                    print("\n ANALYZING URL...")
+                    result = detector.analyze_url(url)
+                    print(detector.generate_report(result))
+                else:
+                    print("No URL entered")
+
+            elif choice == '3':
+                print ("Enter multiple URLs (one per line, empty line to finish):")
+                urls = []
+                while True:
+                    url = input().strip()
+                    if not url:
+                        break
+                    urls.append(url)
+
+                if urls:
+                    print(f"ANALYZING {len(urls)} URLs...")
+                    results = detector.batch_analyze(urls)
+
+                    #summary
+                    risk_counts = Counter(r.risk_level for r in results)
+                    print("\n BATCH ANALYSIS SUMMARY:")
+                    PRINT("-" * 40) 
+                    for level in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'SAFE']:
+                        count = risk_counts.get(level, 0)
+                        if count > 0:
+                            print(f"{level}: {count} URLs")
+
+                    #Detailed results
+                    print("\nDETAILED RESULTS:")
+                    for results in results:
+                        print(f"\nURL: {result.url}")
+                        print(f"Risk Level: {result.risk_level} (Score: {result.risk_score}/100)")
+                        print("-" * 40)
+
+                elif choice == '4':
+                    print("\nExiting Phishing Link Detector. Stay safe online!!!!!")
+                    break
+                else:
+                    print("Invalid option! Please try again.")
+
+if __name__=="__main__":
+    #check for required packages
+    required_packages = ['tldextract', 'whois', 'requests']
+    missing_packages = []
+
+    for package in required_packages:
+        try:
+            __import__(package)
+        except ImportError:
+            missing_packages.append(package)
+    
+    if missing_packages:
+        print("Missing required packages. Install them using:")
+        print(f"pip install {' '.join(missing_packages)}")
+        print("\nBasic functionality will still work without these packages.\n")
+
+        main()
+
+
+
